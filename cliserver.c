@@ -379,7 +379,7 @@ static void cmd_error(struct bufferevent *buf_event, short error, void *arg)
 	} else if(error & EVBUFFER_TIMEOUT) {
 		INFO_OUT("Remote host on fd %d timed out.\n", cmdsocket->fd);
 	} else {
-		ERROR_OUT("A socket error occurred on fd %d.\n", cmdsocket->fd);
+		ERROR_OUT("A socket error (0x%hx) occurred on fd %d.\n", error, cmdsocket->fd);
 	}
 
 	free_cmdsocket(cmdsocket);
