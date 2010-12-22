@@ -98,14 +98,14 @@ struct cmdsocket {
 struct command {
 	char *name;
 	char *desc;
-	void (*func)(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline);
+	void (*func)(struct cmdsocket *cmdsocket, struct command *command, const char *params);
 };
 
-static void echo_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline);
-static void help_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline);
-static void info_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline);
-static void quit_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline);
-static void kill_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline);
+static void echo_func(struct cmdsocket *cmdsocket, struct command *command, const char *params);
+static void help_func(struct cmdsocket *cmdsocket, struct command *command, const char *params);
+static void info_func(struct cmdsocket *cmdsocket, struct command *command, const char *params);
+static void quit_func(struct cmdsocket *cmdsocket, struct command *command, const char *params);
+static void kill_func(struct cmdsocket *cmdsocket, struct command *command, const char *params);
 
 static void shutdown_cmdsocket(struct cmdsocket *cmdsocket);
 
@@ -122,29 +122,29 @@ static struct cmdsocket cmd_listhead = { .next = NULL };
 static struct cmdsocket * const socketlist = &cmd_listhead;
 
 
-static void echo_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline)
+static void echo_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
 {
-	INFO_OUT("%s %s\n", command->name, cmdline);
-	evbuffer_add_printf(cmdsocket->buffer, "%s\n", cmdline);
+	INFO_OUT("%s %s\n", command->name, params);
+	evbuffer_add_printf(cmdsocket->buffer, "%s\n", params);
 }
 
-static void help_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline)
+static void help_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
 {
 	int i;
 
-	INFO_OUT("%s %s\n", command->name, cmdline);
+	INFO_OUT("%s %s\n", command->name, params);
 
 	for(i = 0; i < ARRAY_SIZE(commands); i++) {
 		evbuffer_add_printf(cmdsocket->buffer, "%s:\t%s\n", commands[i].name, commands[i].desc);
 	}
 }
 
-static void info_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline)
+static void info_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
 {
 	char addr[INET6_ADDRSTRLEN];
 	const char *addr_start;
 
-	INFO_OUT("%s %s\n", command->name, cmdline);
+	INFO_OUT("%s %s\n", command->name, params);
 
 	addr_start = inet_ntop(cmdsocket->addr.sin6_family, &cmdsocket->addr.sin6_addr, addr, sizeof(addr));
 	if(!strncmp(addr, "::ffff:", 7)) {
@@ -159,15 +159,15 @@ static void info_func(struct cmdsocket *cmdsocket, struct command *command, cons
 			);
 }
 
-static void quit_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline)
+static void quit_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
 {
-	INFO_OUT("%s %s\n", command->name, cmdline);
+	INFO_OUT("%s %s\n", command->name, params);
 	shutdown_cmdsocket(cmdsocket);
 }
 
-static void kill_func(struct cmdsocket *cmdsocket, struct command *command, const char *cmdline)
+static void kill_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
 {
-	INFO_OUT("%s %s\n", command->name, cmdline);
+	INFO_OUT("%s %s\n", command->name, params);
 
 	INFO_OUT("Shutting down server.\n");
 	if(event_base_loopexit(cmdsocket->evloop, NULL)) {
