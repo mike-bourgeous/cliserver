@@ -1,5 +1,5 @@
 cliserver
----------
+=========
 A libevent-based server that handles simple commands from multiple clients.
 Created while learning to use libevent, this is intended to help alleviate the
 relative dearth of libevent sample code.  See the reasonably-well-commented
@@ -29,6 +29,23 @@ commands:
  * quit:	Disconnect from the server.
  * kill:	Shut down the server.
 
+A sample client interaction:
+
+    > help
+    echo:	Prints the command line.
+    help:	Prints a list of commands and their descriptions.
+    info:	Prints connection information.
+    quit:	Disconnects from the server.
+    kill:	Shuts down the server.
+    > info
+    Client address: ::1
+    Client port: 60642
+    > echo This is just a simple test program.
+    This is just a simple test program.
+    > quit
+    
+Compiling cliserver
+-------------------
 Compile the server with `make`, run it with `./cliserver`.  Connect to the
 server using netcat: `nc localhost 14310`.
 
@@ -36,5 +53,7 @@ You will need libevent 1.x (I'm using 1.4.2 from Ubuntu 10.10), gcc, and GNU
 make to compile this code.  It should, in theory, be easily portable to libevent
 2.x.
 
+Copyright
+---------
 (C)2010 Mike Bourgeous, licensed under 2-clause BSD
 
