@@ -187,6 +187,25 @@ static void add_cmdsocket(struct cmdsocket *cmdsocket)
 	socketlist->next = cmdsocket;
 }
 
+static struct cmdsocket *create_cmdsocket(int sockfd, struct sockaddr_in6 *remote_addr, struct event_base *evloop)
+{
+	struct cmdsocket *cmdsocket;
+
+	cmdsocket = calloc(1, sizeof(struct cmdsocket));
+	if(cmdsocket == NULL) {
+		ERRNO_OUT("Error allocating command handler info");
+		close(sockfd);
+		return NULL;
+	}
+	cmdsocket->fd = sockfd;
+	cmdsocket->addr = *remote_addr;
+	cmdsocket->evloop = evloop;
+
+	add_cmdsocket(cmdsocket);
+
+	return cmdsocket;
+}
+
 static void free_cmdsocket(struct cmdsocket *cmdsocket)
 {
 	if(CHECK_NULL(cmdsocket)) {
@@ -375,17 +394,11 @@ static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struc
 	}
 
 	// Copy connection info into a command handler info structure
-	cmdsocket = calloc(1, sizeof(struct cmdsocket));
+	cmdsocket = create_cmdsocket(sockfd, remote_addr, evloop);
 	if(cmdsocket == NULL) {
-		ERRNO_OUT("Error allocating command handler info");
 		close(sockfd);
 		return;
 	}
-	cmdsocket->fd = sockfd;
-	cmdsocket->addr = *remote_addr;
-	cmdsocket->evloop = evloop;
-
-	add_cmdsocket(cmdsocket);
 
 	// Initialize a buffered I/O event
 	cmdsocket->buf_event = bufferevent_new(sockfd, cmd_read, NULL, cmd_error, cmdsocket);
