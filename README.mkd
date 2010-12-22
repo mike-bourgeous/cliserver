@@ -1,9 +1,14 @@
 cliserver
 ---------
-A libevent-driven server that handles simple commands from multiple clients.
+A libevent-based server that handles simple commands from multiple clients.
 Created while learning to use libevent, this is intended to help alleviate the
 relative dearth of libevent sample code.  See the reasonably-well-commented
-source code for additional information.
+source code for additional information, and feel free to borrow the macros at
+the beginning of cliserver.c (though if you think they're useful, credit would
+be appreciated).
+
+This code has been tested not to leak memory or file descriptors under a
+variety of conditions using valgrind.
 
 Note that evbuffer_readline() is a potential source of denial of service, as
 once data exists in a buffer, that buffer's read event will continue triggering
@@ -11,7 +16,9 @@ until a newline is received and the buffer is cleared.  Additionally,
 evbuffer_readline() does an O(n) scan for a newline character each time it is
 called.  One solution would be checking the length of the buffer and dropping
 the connection if the buffer exceeds some limit (dropping the data is less
-desirable, as the client is clearly not speaking our protocol anyway).
+desirable, as the client is clearly not speaking our protocol anyway).  The
+server won't crash with really long lines within the limits of system RAM
+(tested using lines up to 1GB in length), it just runs very slowly.
 
 Clients connect to the server on port 14310, allowing them to run the following
 commands:
