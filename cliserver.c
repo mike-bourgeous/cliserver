@@ -12,7 +12,7 @@
  * our protocol anyway).
  *
  * Created Dec. 19-21, 2010 while learning to use libevent 1.4.
- * (C)2010 Mike Bourgeous, licensed under 3-clause BSD
+ * (C)2010 Mike Bourgeous, licensed under 2-clause BSD
  * Contact: mike on nitrogenlogic (it's a dot com domain)
  *
  * References used:
