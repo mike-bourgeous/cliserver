@@ -23,8 +23,9 @@
  * http://www.wangafu.net/~nickm/libevent-book/Ref6_bufferevent.html
  * http://publib.boulder.ibm.com/infocenter/iseries/v5r3/index.jsp?topic=%2Frzab6%2Frzab6xacceptboth.htm
  *
- * Useful command for testing:
- * echo "info" | eval "$(for f in `seq 1 100`; do echo -n nc localhost 14310 '| '; done; echo nc localhost 14310)"
+ * Useful commands for testing:
+ * valgrind --leak-check=full --show-reachable=yes --track-fds=yes --track-origins=yes --read-var-info=yes ./cliserver
+ * echo "info" | eval "$(for f in `seq 1 100`; do echo -n nc -q 10 localhost 14310 '| '; done; echo nc -q 10 localhost 14310)"
  */
 #include <stdio.h>
 #include <stdlib.h>
