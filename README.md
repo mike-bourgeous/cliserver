@@ -7,11 +7,11 @@ relative dearth of libevent sample code.
 Clients connect to the server on port 14310, allowing them to run the following
 commands:
 
-echo:	Prints the command line.
-help:	Prints a list of commands and their descriptions.
-info:	Prints connection information.
-quit:	Disconnects from the server.
-kill:	Shuts down the server.
+ * echo:	Print the command line.
+ * help:	Print a list of commands and their descriptions.
+ * info:	Print connection information.
+ * quit:	Disconnect from the server.
+ * kill:	Shut down the server.
 
 Compile the server with `make`, run it with `./cliserver`.  Connect to the
 server using netcat: `nc localhost 14310`.
