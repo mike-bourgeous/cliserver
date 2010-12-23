@@ -32,7 +32,6 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
-#include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
