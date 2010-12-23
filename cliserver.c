@@ -117,9 +117,6 @@ static struct command commands[] = {
 };
 
 // List of open connections to be cleaned up at server shutdown
-// The C standard specifies that static and global variables are initialized to
-// zero.  This .next initialization is just to be explicit about the use of the
-// list header.
 static struct cmdsocket cmd_listhead = { .next = NULL };
 static struct cmdsocket * const socketlist = &cmd_listhead;
 
