@@ -3,13 +3,14 @@
  * If no command is received for 60 seconds, the client will be disconnected.
  *
  * Note that evbuffer_readline() is a potential source of denial of service, as
- * once data exists in a buffer, that buffer's read event will continue
- * triggering until a newline is received and the buffer is cleared.
- * Additionally, evbuffer_readline() does an O(n) scan for a newline character
- * each time it is called.  One solution would be checking the length of the
- * buffer, and dropping the connection if the buffer exceeds some limit
- * (dropping the data is less desirable, as the client is clearly not speaking
- * our protocol anyway).
+ * it does an O(n) scan for a newline character each time it is called.  One
+ * solution would be checking the length of the buffer and dropping the
+ * connection if the buffer exceeds some limit (dropping the data is less
+ * desirable, as the client is clearly not speaking our protocol anyway).
+ * Another (more ideal) solution would be starting the newline search at the
+ * end of the existing buffer.  The server won't crash with really long lines
+ * within the limits of system RAM (tested using lines up to 1GB in length), it
+ * just runs very slowly.
  *
  * Created Dec. 19-21, 2010 while learning to use libevent 1.4.
  * (C)2010 Mike Bourgeous, licensed under 2-clause BSD
@@ -447,6 +448,8 @@ static void cmd_connect(int listenfd, short evtype, void *arg)
 			}
 			break;
 		}
+
+		INFO_OUT("Client connected on fd %d\n", listenfd);
 
 		setup_connection(sockfd, &remote_addr, (struct event_base *)arg);
 	}
