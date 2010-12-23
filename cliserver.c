@@ -449,7 +449,7 @@ static void cmd_connect(int listenfd, short evtype, void *arg)
 			break;
 		}
 
-		INFO_OUT("Client connected on fd %d\n", listenfd);
+		INFO_OUT("Client connected on fd %d\n", sockfd);
 
 		setup_connection(sockfd, &remote_addr, (struct event_base *)arg);
 	}
