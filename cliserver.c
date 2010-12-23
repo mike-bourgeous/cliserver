@@ -10,7 +10,7 @@
  * Another (more ideal) solution would be starting the newline search at the
  * end of the existing buffer.  The server won't crash with really long lines
  * within the limits of system RAM (tested using lines up to 1GB in length), it
- * just runs very slowly.
+ * just runs slowly.
  *
  * Created Dec. 19-21, 2010 while learning to use libevent 1.4.
  * (C)2010 Mike Bourgeous, licensed under 2-clause BSD

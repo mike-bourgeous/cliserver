@@ -17,7 +17,7 @@ buffer exceeds some limit (dropping the data is less desirable, as the client
 is clearly not speaking our protocol anyway).  Another (more ideal) solution
 would be starting the newline search at the end of the existing buffer.  The
 server won't crash with really long lines within the limits of system RAM
-(tested using lines up to 1GB in length), it just runs very slowly.
+(tested using lines up to 1GB in length), it just runs slowly.
 
 Clients connect to the server on port 14310, allowing them to run the following
 commands:
