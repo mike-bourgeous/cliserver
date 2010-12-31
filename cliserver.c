@@ -147,7 +147,7 @@ static void info_func(struct cmdsocket *cmdsocket, struct command *command, cons
 	INFO_OUT("%s %s\n", command->name, params);
 
 	addr_start = inet_ntop(cmdsocket->addr.sin6_family, &cmdsocket->addr.sin6_addr, addr, sizeof(addr));
-	if(!strncmp(addr, "::ffff:", 7)) {
+	if(!strncmp(addr, "::ffff:", 7) && strchr(addr, '.') != NULL) {
 		addr_start += 7;
 	}
 
