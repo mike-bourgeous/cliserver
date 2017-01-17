@@ -48,11 +48,8 @@ Compiling cliserver
 Compile the server with `make`, run it with `./cliserver`.  Connect to the
 server using netcat: `nc localhost 14310`.
 
-You will need libevent 1.x (I'm using 1.4.13 from Ubuntu 10.10), gcc, and GNU
-make to compile this code.  It should, in theory, be easily portable to
-libevent 2.x.
+This example should work with either libevent 1.x or libevent 2.x.
 
 Copyright
 ---------
 (C)2010 Mike Bourgeous, licensed under 2-clause BSD
-
