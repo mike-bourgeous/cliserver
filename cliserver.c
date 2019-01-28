@@ -122,6 +122,8 @@ static struct cmdsocket cmd_listhead = { .next = NULL };
 static struct cmdsocket * const socketlist = &cmd_listhead;
 
 
+
+
 static void echo_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
 {
 	INFO_OUT("%s %s\n", command->name, params);
@@ -384,6 +386,30 @@ static void cmd_error(struct bufferevent *buf_event, short error, void *arg)
 
 	free_cmdsocket(cmdsocket);
 }
+#if 0
+static void
+conn_writecb(struct bufferevent *buf_event, void *user_data)
+{
+
+}
+#endif
+
+static void
+conn_eventcb(struct bufferevent *buf_event, short events, void *arg)
+{
+	if (events & BEV_EVENT_EOF) {
+		printf("Connection closed.\n");
+	} else if (events & BEV_EVENT_ERROR) {
+		printf("Got an error on the connection: %s\n",
+		    strerror(errno));/*XXX win32*/
+		cmd_error(buf_event,errno,arg);
+	}
+	/* None of the other events can happen here, since we haven't enabled
+	 * timeouts */
+	bufferevent_free(buf_event);
+}
+
+
 
 static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struct event_base *evloop)
 {
@@ -401,13 +427,15 @@ static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struc
 	}
 
 	// Initialize a buffered I/O event
-	cmdsocket->buf_event = bufferevent_new(sockfd, cmd_read, NULL, cmd_error, cmdsocket);
+	cmdsocket->buf_event = bufferevent_socket_new(evloop,sockfd,BEV_OPT_DEFER_CALLBACKS);
+	//cmdsocket->buf_event = bufferevent_new(sockfd, cmd_read, NULL, cmd_error, cmdsocket);
 	if(CHECK_NULL(cmdsocket->buf_event)) {
 		ERROR_OUT("Error initializing buffered I/O event for fd %d.\n", sockfd);
 		free_cmdsocket(cmdsocket);
 		return;
 	}
 	bufferevent_base_set(evloop, cmdsocket->buf_event);
+	bufferevent_setcb(cmdsocket->buf_event,cmd_read,NULL/*conn_writecb*/,conn_eventcb,cmdsocket);
 	bufferevent_settimeout(cmdsocket->buf_event, 60, 0);
 	if(bufferevent_enable(cmdsocket->buf_event, EV_READ)) {
 		ERROR_OUT("Error enabling buffered I/O event for fd %d.\n", sockfd);
