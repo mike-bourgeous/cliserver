@@ -1,5 +1,4 @@
-/****************************************************************************
- * system/zmodem/zm.h
+/*
  *
  *   Copyright (C) 2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -35,27 +34,32 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ */
 
 #ifndef __ZM_H_
 #define __ZM_H_
 
-/****************************************************************************
+/*
  * Included Files
- ****************************************************************************/
+ */
 #ifdef __linux__
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #endif
 
 #include "zmodem.h"
 #include "ascii.h"
-/****************************************************************************
+#include "crc16.h"
+#include "crc32.h"
+#include "zm_errno.h"
+
+/*
  * Pre-processor Definitions
- ****************************************************************************/
+ */
 /* ZModem *******************************************************************/
 /* Zmodem ZRINIT flags.  These bits describe the cababilities of the receiver.
  * Reference: Paragraph 11.2:
@@ -240,9 +244,9 @@
 #  endif
 #endif
 
-/****************************************************************************
+/*
  * Public Types
- ****************************************************************************/
+ */
 /* The state of the parser */
 
 enum parser_state_e
@@ -278,6 +282,26 @@ enum pdata_substate_e
   PDATA_CRC                  /* Have the packet type, accumulating the CRC */
 };
 
+#ifndef _STAT_VER_LINUX
+struct stat {
+#if 0
+    dev_t     st_dev;     /* ID of device containing file */
+    ino_t     st_ino;     /* inode number */
+    mode_t    st_mode;    /* protection */
+    nlink_t   st_nlink;   /* number of hard links */
+    uid_t     st_uid;     /* user ID of owner */
+    gid_t     st_gid;     /* group ID of owner */
+#endif  
+    /*dev_t*/unsigned long int     st_rdev;    /* device ID (if special file) */
+    /*off_t*/long int     st_size;    /* total size, in bytes */
+#if 0    
+    blkcnt_t  st_blocks;  /* number of 512B blocks allocated */
+    time_t    st_atime;   /* time of last access */
+    time_t    st_mtime;   /* time of last modification */
+    time_t    st_ctime;   /* time of last status change */
+#endif
+};
+#endif
 /* This type describes the method to perform actions at the time of
  * a state transition.
  */
@@ -340,7 +364,6 @@ struct zm_state_s
   uint16_t pktlen;           /* Number valid bytes in pktbuf[] */
   uint16_t flags;            /* See ZM_FLAG_* definitions */
   uint16_t nerrors;          /* Number of data errors */
-  timer_t  timer;            /* Watchdog timer */
   /* Buffers.
    *
    * rcvbuf  - Data from the remote peer is receive this buffer
@@ -353,8 +376,9 @@ struct zm_state_s
   uint8_t  rcvbuf[CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE];
   uint8_t  pktbuf[ZM_PKTBUFSIZE];
   uint8_t  scratch[CONFIG_SYSTEM_ZMODEM_SNDBUFSIZE];
-  size_t (*write)(const uint8_t *buffer, size_t buflen); /* zmodem write data*/
-  size_t (*read)(const uint8_t *buffer, size_t buflen); /* zmodem read data*/
+  size_t (*write)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen); /* zmodem write data*/
+  size_t (*read)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen); /* zmodem read data*/
+  size_t (*on_receive)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen, bool zcnl); /* receive data callback*/
 };
 
 /* Receive state information */
@@ -384,7 +408,6 @@ struct zmr_state_s
 #ifdef CONFIG_SYSTEM_ZMODEM_TIMESTAMPS
   time_t timestamp;          /* Remote time stamp */
 #endif
-  int outfd;                 /* Local output file descriptor */
 };
 
 /* Send state information */
@@ -415,9 +438,9 @@ struct zms_state_s
   int infd;                  /* Local input file descriptor */
 };
 
-/****************************************************************************
+/*
  * Public Data
- ****************************************************************************/
+ */
 
 #undef EXTERN
 #if defined(__cplusplus)
@@ -448,99 +471,99 @@ EXTERN const uint8_t g_zeroes[4];
 
 EXTERN const uint8_t g_canistr[CANISTR_SIZE];
 
-/****************************************************************************
+/*
  * Public Function Prototypes
- ****************************************************************************/
+ */
 
-/****************************************************************************
+/*
  * Name: zm_bytobe32
  *
  * Description:
  *   Convert a sequence of four bytes into a 32-bit value.  The byte
  *   sequence is assumed to be big-endian.
  *
- ****************************************************************************/
+ */
 
 uint32_t zm_bytobe32(const uint8_t *val8);
 
-/****************************************************************************
+/*
  * Name: zm_bytobe32
  *
  * Description:
  *   Convert a 32-bit value in a sequence of four bytes in big-endian byte
  *   order.
  *
- ****************************************************************************/
+ */
 
 void zm_be32toby(uint32_t val32, uint8_t *val8);
 
-/****************************************************************************
+/*
  * Name: zm_encnibble
  *
  * Description:
  *   Encode an 4-bit binary value to a single hex "digit".
  *
- ****************************************************************************/
+ */
 
 char zm_encnibble(uint8_t nibble);
 
-/****************************************************************************
+/*
  * Name: zm_encnibble
  *
  * Description:
  *   Decode an 4-bit binary value from a single hex "digit".
  *
- ****************************************************************************/
+ */
 
 uint8_t zm_decnibble(char hex);
 
-/****************************************************************************
+/*
  * Name: zm_puthex8
  *
  * Description:
  *   Convert an 8-bit binary value to 2 hex "digits".
  *
- ****************************************************************************/
+ */
 
 uint8_t *zm_puthex8(uint8_t *ptr, uint8_t ch);
 
-/****************************************************************************
+/*
  * Name: zm_read
  *
  * Description:
  *   Read a buffer of data from a read-able stream.
  *
- ****************************************************************************/
+ */
 
 ssize_t zm_read(struct zm_state_s *pzm, uint8_t *buffer, size_t buflen);
 
-/****************************************************************************
+/*
  * Name: zm_getc
  *
  * Description:
  *   Read a one byte of data from a read-able stream.
  *
- ****************************************************************************/
+ */
 
 int zm_getc(struct zm_state_s *pzm);
 
-/****************************************************************************
+/*
  * Name: zm_write
  *
  * Description:
  *   Write a buffer of data to a write-able stream.
  *
- ****************************************************************************/
+ */
 
 ssize_t zm_write(struct zm_state_s *pzm, const uint8_t *buffer, size_t buflen);
 
-/****************************************************************************
+/*
  * Name: zm_remwrite
  *
  * Description:
  *   Write a buffer of data to the remote peer.
  *
- ****************************************************************************/
+ */
 
 #ifdef CONFIG_SYSTEM_ZMODEM_DUMPBUFFER
 ssize_t zm_remwrite(struct zm_state_s *pzm, const uint8_t *buffer, size_t buflen);
@@ -548,7 +571,7 @@ ssize_t zm_remwrite(struct zm_state_s *pzm, const uint8_t *buffer, size_t buflen
 #  define zm_remwrite(f,b,s) zm_write(f,b,s)
 #endif
 
-/****************************************************************************
+/*
  * Name: zm_writefile
  *
  * Description:
@@ -558,11 +581,11 @@ ssize_t zm_remwrite(struct zm_state_s *pzm, const uint8_t *buffer, size_t buflen
  * NOTE:  Not re-entrant.  CR-LF sequences that span buffer boundaries are
  * not guaranteed to to be handled correctly.
  *
- ****************************************************************************/
+ */
 
 int zm_writefile(struct zm_state_s *pzm, const uint8_t *buffer, size_t buflen, bool zcnl);
 
-/****************************************************************************
+/*
  * Name: zm_filecrc
  *
  * Description:
@@ -571,11 +594,11 @@ int zm_writefile(struct zm_state_s *pzm, const uint8_t *buffer, size_t buflen, b
  * Assumptions:
  *   The allocated I/O buffer is available to buffer file data.
  *
- ****************************************************************************/
+ */
 
 uint32_t zm_filecrc(struct zm_state_s *pzm, const char *filename);
 
-/****************************************************************************
+/*
  * Name: zm_putzdle
  *
  * Description:
@@ -586,12 +609,12 @@ uint32_t zm_filecrc(struct zm_state_s *pzm, const char *filename);
  *   buffer - Buffer in which to add the possibly escaped character
  *   ch - The raw, unescaped character to be added
  *
- ****************************************************************************/
+ */
 
 uint8_t *zm_putzdle(struct zm_state_s *pzm, uint8_t *buffer,
                         uint8_t ch);
 
-/****************************************************************************
+/*
  * Name: zm_senddata
  *
  * Description:
@@ -603,12 +626,12 @@ uint8_t *zm_putzdle(struct zm_state_s *pzm, uint8_t *buffer,
  *   buffer - Buffer of data to be sent
  *   buflen - The number of bytes in buffer to be sent
  *
- ****************************************************************************/
+ */
 
 int zm_senddata(struct zm_state_s *pzm, const uint8_t *buffer,
                 size_t buflen);
 
-/****************************************************************************
+/*
  * Name: zm_sendhexhdr
  *
  * Description:
@@ -624,12 +647,12 @@ int zm_senddata(struct zm_state_s *pzm, const uint8_t *buffer,
  * Assumptions:
  *   The allocated I/O buffer is available to buffer file data.
  *
- ****************************************************************************/
+ */
 
 int zm_sendhexhdr(struct zm_state_s *pzm, int type,
                   const uint8_t *buffer);
 
-/****************************************************************************
+/*
  * Name: zm_sendbin16hdr
  *
  * Description:
@@ -644,12 +667,12 @@ int zm_sendhexhdr(struct zm_state_s *pzm, int type,
  * Assumptions:
  *   The allocated I/O buffer is available to buffer file data.
  *
- ****************************************************************************/
+ */
 
 int zm_sendbin16hdr(struct zm_state_s *pzm, int type,
                     const uint8_t *buffer);
 
-/****************************************************************************
+/*
  * Name: zm_sendbin32hdr
  *
  * Description:
@@ -664,12 +687,12 @@ int zm_sendbin16hdr(struct zm_state_s *pzm, int type,
  * Assumptions:
  *   The allocated I/O buffer is available to buffer file data.
  *
- ****************************************************************************/
+ */
 
 int zm_sendbin32hdr(struct zm_state_s *pzm, int type,
                     const uint8_t *buffer);
 
-/****************************************************************************
+/*
  * Name: zm_sendbinhdr
  *
  * Description:
@@ -685,12 +708,12 @@ int zm_sendbin32hdr(struct zm_state_s *pzm, int type,
  * Assumptions:
  *   The allocated I/O buffer is available to buffer file data.
  *
- ****************************************************************************/
+ */
 
 int zm_sendbinhdr(struct zm_state_s *pzm, int type,
                   const uint8_t *buffer);
 
-/****************************************************************************
+/*
  * Name: zm_datapump
  *
  * Description:
@@ -699,31 +722,31 @@ int zm_sendbinhdr(struct zm_state_s *pzm, int type,
  *   is detected or until the state machine reports that the transfer has
  *   completed successfully.
  *
- ****************************************************************************/
+ */
 
 int zm_datapump(struct zm_state_s *pzm);
 
-/****************************************************************************
+/*
  * Name: zm_readstate
  *
  * Description:
  *   Enter PSTATE_DATA.
  *
- ****************************************************************************/
+ */
 
 void zm_readstate(struct zm_state_s *pzm);
 
-/****************************************************************************
+/*
  * Name: zm_timeout
  *
  * Description:
  *   Called by the watchdog logic if/when a timeout is detected.
  *
- ****************************************************************************/
+ */
 
 int zm_timeout(struct zm_state_s *pzm);
 
-/****************************************************************************
+/*
  * Name: zm_rcvpending
  *
  * Description:
@@ -731,60 +754,83 @@ int zm_timeout(struct zm_state_s *pzm);
  *   the local sender should stop data streaming operations and process the
  *   incoming data.
  *
- ****************************************************************************/
+ */
 
 #ifdef CONFIG_SYSTEM_ZMODEM_RCVSAMPLE
 bool zm_rcvpending(struct zm_state_s *pzm);
 #endif
 
-/****************************************************************************
+/*
  * Name:  zm_timerinit
  *
  * Description:
  *   Create the POSIX timer used to manage timeouts and attach the SIGALRM
  *   signal handler to catch the timeout events.
  *
- ****************************************************************************/
+ */
 
 int zm_timerinit(struct zm_state_s *pzm);
 
-/****************************************************************************
+/*
  * Name:  zm_timerstart
  *
  * Description:
  *   Start, restart, or stop the timer.
  *
- ****************************************************************************/
+ */
 
 int zm_timerstart(struct zm_state_s *pzm, unsigned int sec);
 
-/****************************************************************************
+/*
  * Name:  zm_timerstop
  *
  * Description:
  *   Stop the timer.
  *
- ****************************************************************************/
+ */
 
 #define zm_timerstop(p) zm_timerstart(p,0)
 
-/****************************************************************************
+/*
  * Name:  zm_timerrelease
  *
  * Description:
  *   Destroy the timer and and detach the signal handler.
  *
- ****************************************************************************/
+ */
 
 int zm_timerrelease(struct zm_state_s *pzm);
 
-/****************************************************************************
+/*
+ * Name: isxdigit
+ *
+ * Description:
+ *   isxdigit() checks for a hexadecimal digits, i.e. one of {0-9,a-f,A-F}
+ *
+ */
+#define isxdigit(c) \
+    (((c) >= '0' && (c) <= '9') || \
+     ((c) >= 'a' && (c) <= 'f') || \
+     ((c) >= 'A' && (c) <= 'F'))
+
+
+/*
+ * Name: isprint
+ *
+ * Description:
+ *   Checks for a printable character (including space)
+ *
+ */
+#define isprint(c)   ((c) >= 0x20 && (c) < 0x7f)
+
+
+/*
  * Name:  zm_dumpbuffer
  *
  * Description:
  *  Dump a buffer of zmodem data.
  *
- ****************************************************************************/
+ */
 
 #ifdef CONFIG_SYSTEM_ZMODEM_DUMPBUFFER
 void zm_dumpbuffer(const char *msg, const void *buffer, size_t buflen);

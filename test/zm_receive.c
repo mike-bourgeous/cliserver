@@ -725,8 +725,7 @@ static int zmr_filedata(FAR struct zm_state_s *pzm)
                 pzm->pstate, pzm->psubstate, PSTATE_DATA, PDATA_READ);
 
           /* Send the cancel string */
-
-          (void)zm_remwrite(pzm->remfd, g_canistr, CANISTR_SIZE);
+          pzm->write(g_canistr, CANISTR_SIZE);
 
           /* Enter PSTATE_DATA */
 

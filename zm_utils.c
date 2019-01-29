@@ -57,7 +57,7 @@ const uint8_t g_zeroes[4] = { 0, 0, 0, 0 };
 
 uint32_t zm_bytobe32(const uint8_t *val8)
 {
-  return
+    return
     (uint32_t)val8[3] << 24 |
     (uint32_t)val8[2] << 16 |
     (uint32_t)val8[1] <<  8 |

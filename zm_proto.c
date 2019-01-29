@@ -321,7 +321,7 @@ int zm_sendhexhdr(struct zm_state_s *pzm, int type,
 
   /* Send the header */
 
-  nwritten = zm_remwrite(pzm, pzm->scratch, ptr - pzm->scratch);
+  nwritten = pzm->write((struct zmr_state_s **)&pzm, pzm->scratch, ptr - pzm->scratch);
   return nwritten < 0 ? (int)nwritten : 0;
 }
 

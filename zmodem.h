@@ -25,10 +25,10 @@
 #ifndef __ZMODEM_H_
 #define __ZMODEM_H_
 
-/****************************************************************************
+/*
  * Pre-processor Definitions
- ****************************************************************************/
-/* Configuration ************************************************************/
+ */
+/* Configuration */
 
 /* The size of one buffer used to read data from the remote peer.  The total
  * buffering capability is SYSTEM_ZMODEM_RCVBUFSIZE plus the size of the RX
@@ -125,9 +125,10 @@
 #endif
 
 
-/****************************************************************************
+/*
  * Public Types
- ****************************************************************************/
+ */
+
 /* Enumerations describing arguments to zms_initialize() */
 
 enum zm_xfertype_e
@@ -151,9 +152,25 @@ enum zm_option_e
   XM_OPTION_RENAME   = 8     /* Change filename if destination exists */
 };
 
-/****************************************************************************
+
+
+#undef offsetof
+#ifdef __compiler_offsetof
+#define offsetof(TYPE, MEMBER)  __compiler_offsetof(TYPE, MEMBER)
+#else
+#define offsetof(TYPE, MEMBER)  ((size_t)&((TYPE *)0)->MEMBER)
+#endif
+
+
+#define container_of(ptr, type, member) ({	    \
+	const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
+
+
+/*
  * Public Data
- ****************************************************************************/
+ */
 
 #undef EXTERN
 #if defined(__cplusplus)
@@ -164,11 +181,11 @@ extern "C"
 #define EXTERN extern
 #endif
 
-/****************************************************************************
+/*
  * Public Function Prototypes
- ****************************************************************************/
+ */
 
-/****************************************************************************
+/*
  * Name: zmr_initialize
  *
  * Description:
@@ -181,12 +198,13 @@ extern "C"
  * Returned Value:
  *   An opaque handle that can be use with zmr_receive() and zmr_release().
  *
- ****************************************************************************/
+ */
 
-struct zmr_state_s * zmr_initialize(size_t (*write)(const uint8_t *buffer, size_t buflen), 
-                                    size_t (*read)(const uint8_t *buffer, size_t buflen) );
+struct zmr_state_s * zmr_initialize(size_t (*write)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen), 
+                                    size_t (*read)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen),
+                                    size_t (*on_receive)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen,bool zcnl) );
 
-/****************************************************************************
+/*
  * Name: zmr_receive
  *
  * Description:
@@ -198,11 +216,10 @@ struct zmr_state_s * zmr_initialize(size_t (*write)(const uint8_t *buffer, size_
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
-
-int zmr_receive(struct zmr_state_s * handle);
+ */
+int zmr_receive(struct zmr_state_s * handle,int len);
 #if 0
-/****************************************************************************
+/*
  * Name: zmr_release
  *
  * Description:
@@ -214,11 +231,11 @@ int zmr_receive(struct zmr_state_s * handle);
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ */
 
 int zmr_release(ZMRHANDLE);
 
-/****************************************************************************
+/*
  * Name: zms_initialize
  *
  * Description:
@@ -240,11 +257,11 @@ int zmr_release(ZMRHANDLE);
  * Returned Value:
  *   An opaque handle that can be use with zmx_send() and zms_release()
  *
- ****************************************************************************/
+ */
 
 ZMSHANDLE zms_initialize(int remfd);
 
-/****************************************************************************
+/*
  * Name: zms_send
  *
  * Description:
@@ -261,13 +278,13 @@ ZMSHANDLE zms_initialize(int remfd);
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ */
 
 int zms_send(ZMSHANDLE handle, FAR const char *filename,
              FAR const char *rfilename, enum zm_xfertype_e xfertype,
              enum zm_option_e option,  bool skip);
 
-/****************************************************************************
+/*
  * Name: zms_release
  *
  * Description:
@@ -279,7 +296,7 @@ int zms_send(ZMSHANDLE handle, FAR const char *filename,
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ */
 
 int zms_release(ZMSHANDLE handle);
 #endif

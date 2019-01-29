@@ -39,7 +39,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <event.h>
+#include <stdbool.h>
 
+#include "zmodem.h"
+#include "zm.h"
 
 // Behaves similarly to printf(...), but adds file, line, and function
 // information.  I omit do ... while(0) because I always use curly braces in my
@@ -78,6 +81,9 @@ struct cmdsocket {
 	// Whether this socket has been shut down
 	int shutdown;
 
+	// zmodem start flag
+	int zm_start;
+
 	// The client's socket address
 	struct sockaddr_in6 addr;
 
@@ -93,6 +99,8 @@ struct cmdsocket {
 
 	// Doubly-linked list (so removal is fast) for cleaning up at shutdown
 	struct cmdsocket *prev, *next;
+
+	struct zmr_state_s *pzmr;
 };
 
 struct command {
@@ -352,23 +360,33 @@ static void cmd_read(struct bufferevent *buf_event, void *arg)
 	char *cmdline;
 	size_t len;
 	int i;
-
+	if(!cmdsocket->shutdown){
+		cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
+		if(strcmp(cmdline,"rz") == 0){
+			cmdsocket->zm_start = 1;
+		}
+		if(cmdsocket->zm_start == 1){
+			memcpy(cmdsocket->pzmr->cmn.rcvbuf,cmdline,len);
+			zmr_receive(cmdsocket->pzmr,len);
+		}
+	}
+#if 0
 	// Process up to 10 commands at a time
 	for(i = 0; i < 10 && !cmdsocket->shutdown; i++) {
-		cmdline = evbuffer_readline(buf_event->input);
+		cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
 		if(cmdline == NULL) {
 			// No data, or data has arrived, but no end-of-line was found
 			break;
-		}
-		len = strlen(cmdline);
-	
+		}	
 		INFO_OUT("Read a line of length %zd from client on fd %d: %s\n", len, cmdsocket->fd, cmdline);
+		
 		process_command(len, cmdline, cmdsocket);
 		free(cmdline);
 	}
 
 	// Send the results to the client
 	flush_cmdsocket(cmdsocket);
+#endif
 }
 
 static void cmd_error(struct bufferevent *buf_event, short error, void *arg)
@@ -411,6 +429,28 @@ conn_eventcb(struct bufferevent *buf_event, short events, void *arg)
 
 
 
+size_t zmodem_write(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen){
+	struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+	
+	evbuffer_add_printf(cmdsocket->buffer, "%s",buffer);
+	
+	if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
+		ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
+	}
+	return 0;
+} 
+size_t zmodem_read(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen){
+	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+	
+	return 0;
+}
+size_t zmodem_on_receive(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen,bool zcnl){
+	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+	printf("%s\n",buffer);
+
+	return 0;
+}
+
 static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struct event_base *evloop)
 {
 	struct cmdsocket *cmdsocket;
@@ -450,9 +490,10 @@ static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struc
 		free_cmdsocket(cmdsocket);
 		return;
 	}
-
+	
 	send_prompt(cmdsocket);
 	flush_cmdsocket(cmdsocket);
+	cmdsocket->pzmr = zmr_initialize(zmodem_write,zmodem_read,zmodem_on_receive);
 }
 
 static void cmd_connect(int listenfd, short evtype, void *arg)
