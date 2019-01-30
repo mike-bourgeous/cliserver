@@ -321,7 +321,7 @@ int zm_sendhexhdr(struct zm_state_s *pzm, int type,
 
   /* Send the header */
 
-  nwritten = pzm->write((struct zmr_state_s **)&pzm, pzm->scratch, ptr - pzm->scratch);
+  nwritten = pzm->write(pzm->arg, pzm->scratch, ptr - pzm->scratch);
   return nwritten < 0 ? (int)nwritten : 0;
 }
 
@@ -387,7 +387,7 @@ int zm_sendbin16hdr(struct zm_state_s *pzm, int type,
   /* Send the header */
 
   buflen   = ptr - pzm->scratch;
-  nwritten = zm_remwrite(pzm, pzm->scratch, buflen);
+  nwritten = zm_remwrite(pzm->arg, pzm->scratch, buflen);
   return nwritten < 0 ? (int)nwritten : 0;
 }
 

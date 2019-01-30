@@ -1219,7 +1219,7 @@ static int zmr_fileerror(struct zmr_state_s *pzmr, uint8_t type,
       *dest++ = '\0';
 
       len = strlen((char *)pzmr->cmn.pktbuf);
-      nwritten = pzmr->cmn.write(&pzmr,pzmr->cmn.pktbuf, len);
+      nwritten = pzmr->cmn.write(pzmr->cmn.arg, pzmr->cmn.pktbuf, len);
       if (nwritten < 0)
         {
           zmdbg("ERROR: write failed: %d\n", (int)nwritten);
@@ -1355,7 +1355,6 @@ static int zm_hdrevent(struct zm_state_s *pzm)
   pzm->psubstate = PIDLE_ZPAD;
 
   /* Verify the checksum.  16- or 32-bit? */
-
   if (pzm->hdrfmt == ZBIN32)
     {
       uint32_t crc;
@@ -2058,9 +2057,10 @@ int zmr_receive(struct zmr_state_s *pzmr, int len)
  *
  */
 
-struct zmr_state_s * zmr_initialize(size_t (*write)(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen), 
-                                    size_t (*read)(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen),
-                                    size_t (*on_receive)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen,bool zcnl) ){
+struct zmr_state_s * zmr_initialize(size_t (*write)(void* arg, const uint8_t *buffer, size_t buflen), 
+                                    size_t (*read)(void* arg, const uint8_t *buffer, size_t buflen),
+                                    size_t (*on_receive)(void* arg, const uint8_t *buffer, size_t buflen,bool zcnl),
+                                    void *arg ){
   struct zmr_state_s *pzmr;
   /* Allocate a new Zmodem receive state structure */
 
@@ -2075,6 +2075,7 @@ struct zmr_state_s * zmr_initialize(size_t (*write)(struct zmr_state_s **pzmr, c
   pzmr->cmn.write = write;
   pzmr->cmn.read = read;
   pzmr->cmn.on_receive = on_receive;
+  pzmr->cmn.arg = arg;
   pzmr->cmn.timeout = CONFIG_SYSTEM_ZMODEM_CONNTIME;
   return pzmr;
 }

@@ -200,9 +200,10 @@ extern "C"
  *
  */
 
-struct zmr_state_s * zmr_initialize(size_t (*write)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen), 
-                                    size_t (*read)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen),
-                                    size_t (*on_receive)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen,bool zcnl) );
+struct zmr_state_s * zmr_initialize(size_t (*write)(void *arg, const uint8_t *buffer, size_t buflen), 
+                                    size_t (*read)(void *arg, const uint8_t *buffer, size_t buflen),
+                                    size_t (*on_receive)(void *arg, const uint8_t *buffer, size_t buflen,bool zcnl),
+                                    void *arg );
 
 /*
  * Name: zmr_receive

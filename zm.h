@@ -231,8 +231,8 @@
  */
 
 #ifdef __linux__
-#  define zmprintf(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
-#  define zmdbg(format, ...)    fprintf(stderr, format, ##__VA_ARGS__)
+#  define zmprintf(format, ...) printf(format, ##__VA_ARGS__)
+#  define zmdbg(format, ...)    printf(format, ##__VA_ARGS__)
 #else
 #  undef CONFIG_SYSTEM_ZMODEM_DUMPBUFFER
 #  ifdef CONFIG_CPP_HAVE_VARARGS
@@ -376,9 +376,10 @@ struct zm_state_s
   uint8_t  rcvbuf[CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE];
   uint8_t  pktbuf[ZM_PKTBUFSIZE];
   uint8_t  scratch[CONFIG_SYSTEM_ZMODEM_SNDBUFSIZE];
-  size_t (*write)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen); /* zmodem write data*/
-  size_t (*read)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen); /* zmodem read data*/
-  size_t (*on_receive)(struct zmr_state_s **pzmr,const uint8_t *buffer, size_t buflen, bool zcnl); /* receive data callback*/
+  size_t (*write)(void *arg, const uint8_t *buffer, size_t buflen); /* zmodem write data*/
+  size_t (*read)(void *arg, const uint8_t *buffer, size_t buflen); /* zmodem read data*/
+  size_t (*on_receive)(void *arg, const uint8_t *buffer, size_t buflen, bool zcnl); /* receive data callback*/
+  void *arg;
 };
 
 /* Receive state information */

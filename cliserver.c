@@ -359,17 +359,29 @@ static void cmd_read(struct bufferevent *buf_event, void *arg)
 	struct cmdsocket *cmdsocket = (struct cmdsocket *)arg;
 	char *cmdline;
 	size_t len;
-	int i;
 	if(!cmdsocket->shutdown){
 		cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
+		INFO_OUT("Read a line of length %zd from client on fd %d: %s\n", len, cmdsocket->fd, cmdline);
 		if(strcmp(cmdline,"rz") == 0){
 			cmdsocket->zm_start = 1;
+			INFO_OUT("get rz, start ....\n");
+			evbuffer_add_printf(cmdsocket->buffer, "start");
+			
+			if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
+				ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
+			}			
+			free(cmdline);
+			goto done;
 		}
 		if(cmdsocket->zm_start == 1){
 			memcpy(cmdsocket->pzmr->cmn.rcvbuf,cmdline,len);
 			zmr_receive(cmdsocket->pzmr,len);
+			
+			INFO_OUT("zmodem parse done....\n");
 		}
 	}
+done:
+	return;
 #if 0
 	// Process up to 10 commands at a time
 	for(i = 0; i < 10 && !cmdsocket->shutdown; i++) {
@@ -399,9 +411,8 @@ static void cmd_error(struct bufferevent *buf_event, short error, void *arg)
 	} else if(error & EVBUFFER_TIMEOUT) {
 		INFO_OUT("Remote host on fd %d timed out.\n", cmdsocket->fd);
 	} else {
-		ERROR_OUT("A socket error (0x%hx) occurred on fd %d.\n", error, cmdsocket->fd);
-	}
-
+		ERROR_OUT("A socket error (0x%hx) occurred on fd %d.\n", error, cmdsocket->fd);		
+	}	
 	free_cmdsocket(cmdsocket);
 }
 #if 0
@@ -428,10 +439,33 @@ conn_eventcb(struct bufferevent *buf_event, short events, void *arg)
 }
 
 
+char* barray2hexstr (const unsigned char* data, size_t datalen) {
+  size_t final_len = datalen * 2;
+  char* chrs = (char *) malloc((final_len + 1) * sizeof(*chrs));
+  unsigned int j = 0;
+  for(j = 0; j<datalen; j++) {
+    chrs[2*j] = (data[j]>>4)+48;
+    chrs[2*j+1] = (data[j]&15)+48;
+    if (chrs[2*j]>57) chrs[2*j]+=7;
+    if (chrs[2*j+1]>57) chrs[2*j+1]+=7;
+  }
+  chrs[2*j]='\0';
+  return chrs;
+}
 
-size_t zmodem_write(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen){
-	struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+size_t zmodem_write(void *arg, const uint8_t *buffer, size_t buflen){
 	
+#if 1
+	int i;
+	char* hexbuffer = barray2hexstr(buffer,buflen);
+	for(i = 0; i < strlen(hexbuffer); i++){
+		printf("%c.",hexbuffer[i]);
+	}
+	printf("\n");
+	free(hexbuffer);
+#endif
+
+	struct cmdsocket *cmdsocket = (struct cmdsocket *)arg;
 	evbuffer_add_printf(cmdsocket->buffer, "%s",buffer);
 	
 	if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
@@ -439,12 +473,12 @@ size_t zmodem_write(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buf
 	}
 	return 0;
 } 
-size_t zmodem_read(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen){
+size_t zmodem_read(void *arg, const uint8_t *buffer, size_t buflen){
 	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
 	
 	return 0;
 }
-size_t zmodem_on_receive(struct zmr_state_s **pzmr, const uint8_t *buffer, size_t buflen,bool zcnl){
+size_t zmodem_on_receive(void *arg, const uint8_t *buffer, size_t buflen,bool zcnl){
 	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
 	printf("%s\n",buffer);
 
@@ -493,7 +527,11 @@ static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struc
 	
 	send_prompt(cmdsocket);
 	flush_cmdsocket(cmdsocket);
-	cmdsocket->pzmr = zmr_initialize(zmodem_write,zmodem_read,zmodem_on_receive);
+	cmdsocket->pzmr = zmr_initialize(zmodem_write,zmodem_read,zmodem_on_receive,cmdsocket);
+	if(CHECK_NULL(cmdsocket->pzmr)) {
+		ERROR_OUT("Error creating zmr_state_s for fd %d.\n", sockfd);
+		free_cmdsocket(cmdsocket);
+	}
 }
 
 static void cmd_connect(int listenfd, short evtype, void *arg)
