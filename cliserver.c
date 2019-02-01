@@ -357,28 +357,36 @@ static void process_command(size_t len, char *cmdline, struct cmdsocket *cmdsock
 static void cmd_read(struct bufferevent *buf_event, void *arg)
 {
 	struct cmdsocket *cmdsocket = (struct cmdsocket *)arg;
-	char *cmdline;
+	char *cmdline =  (char *) malloc((CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE + 1) * sizeof(*cmdline));
 	size_t len;
+	
 	if(!cmdsocket->shutdown){
-		cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
-		INFO_OUT("Read a line of length %zd from client on fd %d: %s\n", len, cmdsocket->fd, cmdline);
-		if(strcmp(cmdline,"rz") == 0){
-			cmdsocket->zm_start = 1;
-			INFO_OUT("get rz, start ....\n");
-			evbuffer_add_printf(cmdsocket->buffer, "start");
-			
-			if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
-				ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
-			}			
-			free(cmdline);
-			goto done;
-		}
-		if(cmdsocket->zm_start == 1){
-			memcpy(cmdsocket->pzmr->cmn.rcvbuf,cmdline,len);
-			zmr_receive(cmdsocket->pzmr,len);
-			
-			INFO_OUT("zmodem parse done....\n");
-		}
+		len = recv(cmdsocket->fd, cmdline,CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE,0);
+		if(len != -1 ){
+			//cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
+			INFO_OUT("Read a line of length %zd from client on fd %d: %s\n", len, cmdsocket->fd, cmdline);
+			if(cmdsocket->zm_start == 0){
+				if(strcmp(cmdline,"rz") == 0){
+					cmdsocket->zm_start = 1;
+					INFO_OUT("get rz, start ....\n");
+					evbuffer_add_printf(cmdsocket->buffer, "start");
+					
+					if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
+						ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
+					}			
+					free(cmdline);
+					goto done;
+				}
+			}
+			if(cmdsocket->zm_start == 1){
+				memcpy(cmdsocket->pzmr->cmn.rcvbuf,cmdline,len);
+				zmr_receive(cmdsocket->pzmr,len);
+				
+				INFO_OUT("zmodem parse done....\n");
+				free(cmdline);
+			}
+		}else
+			INFO_OUT(">>>%s\n",__func__);
 	}
 done:
 	return;
@@ -453,21 +461,19 @@ char* barray2hexstr (const unsigned char* data, size_t datalen) {
   return chrs;
 }
 
-size_t zmodem_write(void *arg, const uint8_t *buffer, size_t buflen){
-	
-#if 1
-	int i;
-	char* hexbuffer = barray2hexstr(buffer,buflen);
-	for(i = 0; i < strlen(hexbuffer); i++){
-		printf("%c.",hexbuffer[i]);
-	}
-	printf("\n");
-	free(hexbuffer);
-#endif
 
+size_t zmodem_write(void *arg, const uint8_t *buffer, size_t buflen){
 	struct cmdsocket *cmdsocket = (struct cmdsocket *)arg;
 	evbuffer_add_printf(cmdsocket->buffer, "%s",buffer);
-	
+#if 1
+	int i;
+	//char* hexbuffer = barray2hexstr(buffer,buflen);
+	for(i = 0; i < buflen; i++){
+		printf("%02x ",buffer[i]);
+	}
+	printf("\n");
+	//free(hexbuffer);
+#endif	
 	if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
 		ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
 	}

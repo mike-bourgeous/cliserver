@@ -242,7 +242,6 @@ int zm_senddata(struct zm_state_s *pzm, const uint8_t *buffer,
     }
 
   /* Send the header */
-
   nwritten = zm_remwrite(pzm, pzm->scratch, ptr - pzm->scratch);
   return nwritten < 0 ? (int)nwritten : 0;
 }
@@ -303,7 +302,7 @@ int zm_sendhexhdr(struct zm_state_s *pzm, int type,
 
   /* crc-1 crc-2 */
 
-  //crc = crc16part(g_zeroes, 2, crc);
+  crc = crc16part(g_zeroes, 2, crc);
   ptr = zm_puthex8(ptr, (crc >> 8) & 0xff);
   ptr = zm_puthex8(ptr, crc & 0xff);
 
@@ -320,7 +319,6 @@ int zm_sendhexhdr(struct zm_state_s *pzm, int type,
     }
 
   /* Send the header */
-
   nwritten = pzm->write(pzm->arg, pzm->scratch, ptr - pzm->scratch);
   return nwritten < 0 ? (int)nwritten : 0;
 }

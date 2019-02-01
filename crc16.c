@@ -123,7 +123,6 @@ uint16_t crc16part(const uint8_t *src, size_t len, uint16_t crc16val)
 
   return crc16val;
 }
-
 /************************************************************************************************
  * Name: crc16
  *
