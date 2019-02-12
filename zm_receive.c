@@ -2027,18 +2027,20 @@ static int zm_parse(struct zm_state_s *pzm, size_t rcvlen)
 
 int zmr_receive(struct zmr_state_s *pzmr, int len)
 {
-  // ssize_t nread;
+   ssize_t nread;
 
   /* The first thing that should happen is to receive ZRQINIT from the
    * remote sender.  This could take while so use a long timeout.
    */
 
 
-  // nread = pzmr->cmn.read(&pzmr,pzmr->cmn.rcvbuf, CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE);
-  // if(nread > 0){
-  //     return zm_parse(&pzmr->cmn,nread);
-  // }
-  return zm_parse(&pzmr->cmn,len);
+   nread = pzmr->cmn.read(pzmr->cmn.arg,pzmr->cmn.rcvbuf, CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE);
+   if(nread > 0){
+       printf("%d\n",nread);    
+       return zm_parse(&pzmr->cmn,nread);
+   }
+    printf("%d\n",nread);
+   return 0;
 }
 
 /*
