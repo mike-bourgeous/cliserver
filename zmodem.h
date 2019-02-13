@@ -40,7 +40,7 @@
  */
 
 #ifndef CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE
-#  define CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE 512
+#  define CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE 8192
 #endif
 
 /* Data may be received in gulps of varying size and alignment.  Received
@@ -49,7 +49,7 @@
  */
 
 #ifndef CONFIG_SYSTEM_ZMODEM_PKTBUFSIZE
-#  define CONFIG_SYSTEM_ZMODEM_PKTBUFSIZE 512
+#  define CONFIG_SYSTEM_ZMODEM_PKTBUFSIZE 8192
 #endif
 
 /* The size of one transmit buffer used for composing messages sent to the
@@ -57,7 +57,7 @@
  */
 
 #ifndef CONFIG_SYSTEM_ZMODEM_SNDBUFSIZE
-#  define CONFIG_SYSTEM_ZMODEM_SNDBUFSIZE 512
+#  define CONFIG_SYSTEM_ZMODEM_SNDBUFSIZE 8192
 #endif
 
 /* CONFIG_SYSTEM_ZMODEM_RCVSAMPLE indicates the local sender can sample

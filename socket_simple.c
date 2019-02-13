@@ -33,10 +33,11 @@ size_t zmodem_write(void *arg, const uint8_t *buffer, size_t buflen){
     len = write(sp->fd,buffer,buflen);
 	return len;
 } 
+
 size_t zmodem_read(void *arg, const uint8_t *buffer, size_t buflen){
 	struct socket_pri *sp = (struct socket_pri *)arg;
     int len;
-    printf("%d +",sp->fd);
+    printf("+");
     //len = recv(sp->fd,buffer,buflen,0);
     len = read(sp->fd,(void*)buffer,buflen);
 
@@ -54,6 +55,7 @@ size_t zmodem_read(void *arg, const uint8_t *buffer, size_t buflen){
 
 size_t zmodem_on_receive(void *arg, const uint8_t *buffer, size_t buflen,bool zcnl){
 	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+    printf("<<<<<<<<<<<<<<<<<zmodem_on_receive>>>>>>>>>>>>>>\n");
 	printf("%s\n",buffer);
 
 	return 0;
