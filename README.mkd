@@ -50,6 +50,13 @@ server using netcat: `nc localhost 14310`.
 
 This example should work with either libevent 1.x or libevent 2.x.
 
+
+socket_simple
+-------------
+Compile the server with `make`, run it with `./socket_simple`.  Connect to the
+server using netcat: `sz  --zmodem --tcp-client 127.0.0.1:1234 -vvvvvvvvvvv crc16.c`.
+
+
 Copyright
 ---------
 (C)2010 Mike Bourgeous, licensed under 2-clause BSD
