@@ -39,7 +39,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <event.h>
+#include <stdbool.h>
 
+#include "zmodem.h"
+#include "zm.h"
 
 // Behaves similarly to printf(...), but adds file, line, and function
 // information.  I omit do ... while(0) because I always use curly braces in my
@@ -78,6 +81,9 @@ struct cmdsocket {
 	// Whether this socket has been shut down
 	int shutdown;
 
+	// zmodem start flag
+	int zm_start;
+
 	// The client's socket address
 	struct sockaddr_in6 addr;
 
@@ -93,6 +99,8 @@ struct cmdsocket {
 
 	// Doubly-linked list (so removal is fast) for cleaning up at shutdown
 	struct cmdsocket *prev, *next;
+
+	struct zmr_state_s *pzmr;
 };
 
 struct command {
@@ -120,6 +128,8 @@ static struct command commands[] = {
 // List of open connections to be cleaned up at server shutdown
 static struct cmdsocket cmd_listhead = { .next = NULL };
 static struct cmdsocket * const socketlist = &cmd_listhead;
+
+
 
 
 static void echo_func(struct cmdsocket *cmdsocket, struct command *command, const char *params)
@@ -347,26 +357,56 @@ static void process_command(size_t len, char *cmdline, struct cmdsocket *cmdsock
 static void cmd_read(struct bufferevent *buf_event, void *arg)
 {
 	struct cmdsocket *cmdsocket = (struct cmdsocket *)arg;
-	char *cmdline;
+	char *cmdline =  (char *) malloc((CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE + 1) * sizeof(*cmdline));
 	size_t len;
-	int i;
-
+	
+	if(!cmdsocket->shutdown){
+		len = recv(cmdsocket->fd, cmdline,CONFIG_SYSTEM_ZMODEM_RCVBUFSIZE,0);
+		if(len != -1 ){
+			//cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
+			INFO_OUT("Read a line of length %zd from client on fd %d: %s\n", len, cmdsocket->fd, cmdline);
+			if(cmdsocket->zm_start == 0){
+				if(strcmp(cmdline,"rz") == 0){
+					cmdsocket->zm_start = 1;
+					INFO_OUT("get rz, start ....\n");
+					evbuffer_add_printf(cmdsocket->buffer, "start");
+					
+					if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
+						ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
+					}			
+					free(cmdline);
+					goto done;
+				}
+			}
+			if(cmdsocket->zm_start == 1){
+				memcpy(cmdsocket->pzmr->cmn.rcvbuf,cmdline,len);
+				zmr_receive(cmdsocket->pzmr,len);
+				
+				INFO_OUT("zmodem parse done....\n");
+				free(cmdline);
+			}
+		}else
+			INFO_OUT(">>>%s\n",__func__);
+	}
+done:
+	return;
+#if 0
 	// Process up to 10 commands at a time
 	for(i = 0; i < 10 && !cmdsocket->shutdown; i++) {
-		cmdline = evbuffer_readline(buf_event->input);
+		cmdline = evbuffer_readln(buf_event->input,&len,EVBUFFER_EOL_ANY);
 		if(cmdline == NULL) {
 			// No data, or data has arrived, but no end-of-line was found
 			break;
-		}
-		len = strlen(cmdline);
-	
+		}	
 		INFO_OUT("Read a line of length %zd from client on fd %d: %s\n", len, cmdsocket->fd, cmdline);
+		
 		process_command(len, cmdline, cmdsocket);
 		free(cmdline);
 	}
 
 	// Send the results to the client
 	flush_cmdsocket(cmdsocket);
+#endif
 }
 
 static void cmd_error(struct bufferevent *buf_event, short error, void *arg)
@@ -379,10 +419,76 @@ static void cmd_error(struct bufferevent *buf_event, short error, void *arg)
 	} else if(error & EVBUFFER_TIMEOUT) {
 		INFO_OUT("Remote host on fd %d timed out.\n", cmdsocket->fd);
 	} else {
-		ERROR_OUT("A socket error (0x%hx) occurred on fd %d.\n", error, cmdsocket->fd);
-	}
-
+		ERROR_OUT("A socket error (0x%hx) occurred on fd %d.\n", error, cmdsocket->fd);		
+	}	
 	free_cmdsocket(cmdsocket);
+}
+#if 0
+static void
+conn_writecb(struct bufferevent *buf_event, void *user_data)
+{
+
+}
+#endif
+
+static void
+conn_eventcb(struct bufferevent *buf_event, short events, void *arg)
+{
+	if (events & BEV_EVENT_EOF) {
+		printf("Connection closed.\n");
+	} else if (events & BEV_EVENT_ERROR) {
+		printf("Got an error on the connection: %s\n",
+		    strerror(errno));/*XXX win32*/
+		cmd_error(buf_event,errno,arg);
+	}
+	/* None of the other events can happen here, since we haven't enabled
+	 * timeouts */
+	bufferevent_free(buf_event);
+}
+
+
+char* barray2hexstr (const unsigned char* data, size_t datalen) {
+  size_t final_len = datalen * 2;
+  char* chrs = (char *) malloc((final_len + 1) * sizeof(*chrs));
+  unsigned int j = 0;
+  for(j = 0; j<datalen; j++) {
+    chrs[2*j] = (data[j]>>4)+48;
+    chrs[2*j+1] = (data[j]&15)+48;
+    if (chrs[2*j]>57) chrs[2*j]+=7;
+    if (chrs[2*j+1]>57) chrs[2*j+1]+=7;
+  }
+  chrs[2*j]='\0';
+  return chrs;
+}
+
+
+size_t zmodem_write(void *arg, const uint8_t *buffer, size_t buflen){
+	struct cmdsocket *cmdsocket = (struct cmdsocket *)arg;
+	evbuffer_add_printf(cmdsocket->buffer, "%s",buffer);
+#if 1
+	int i;
+	//char* hexbuffer = barray2hexstr(buffer,buflen);
+	for(i = 0; i < buflen; i++){
+		printf("%02x ",buffer[i]);
+	}
+	printf("\n");
+	//free(hexbuffer);
+#endif	
+	if(bufferevent_write_buffer(cmdsocket->buf_event, cmdsocket->buffer)) {
+		ERROR_OUT("Error sending data to client on fd %d\n", cmdsocket->fd);
+	}
+	return 0;
+} 
+size_t zmodem_read(void *arg, const uint8_t *buffer, size_t buflen){
+	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+	
+	return 0;
+}
+size_t zmodem_on_receive(void *arg, const uint8_t *buffer, size_t buflen,bool zcnl){
+	//struct cmdsocket *cmdsocket = container_of(pzmr,struct cmdsocket,pzmr);
+	printf("%s\n",buffer);
+
+	return 0;
 }
 
 static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struct event_base *evloop)
@@ -401,13 +507,15 @@ static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struc
 	}
 
 	// Initialize a buffered I/O event
-	cmdsocket->buf_event = bufferevent_new(sockfd, cmd_read, NULL, cmd_error, cmdsocket);
+	cmdsocket->buf_event = bufferevent_socket_new(evloop,sockfd,BEV_OPT_DEFER_CALLBACKS);
+	//cmdsocket->buf_event = bufferevent_new(sockfd, cmd_read, NULL, cmd_error, cmdsocket);
 	if(CHECK_NULL(cmdsocket->buf_event)) {
 		ERROR_OUT("Error initializing buffered I/O event for fd %d.\n", sockfd);
 		free_cmdsocket(cmdsocket);
 		return;
 	}
 	bufferevent_base_set(evloop, cmdsocket->buf_event);
+	bufferevent_setcb(cmdsocket->buf_event,cmd_read,NULL/*conn_writecb*/,conn_eventcb,cmdsocket);
 	bufferevent_settimeout(cmdsocket->buf_event, 60, 0);
 	if(bufferevent_enable(cmdsocket->buf_event, EV_READ)) {
 		ERROR_OUT("Error enabling buffered I/O event for fd %d.\n", sockfd);
@@ -422,9 +530,14 @@ static void setup_connection(int sockfd, struct sockaddr_in6 *remote_addr, struc
 		free_cmdsocket(cmdsocket);
 		return;
 	}
-
+	
 	send_prompt(cmdsocket);
 	flush_cmdsocket(cmdsocket);
+	cmdsocket->pzmr = zmr_initialize(zmodem_write,zmodem_read,zmodem_on_receive,cmdsocket);
+	if(CHECK_NULL(cmdsocket->pzmr)) {
+		ERROR_OUT("Error creating zmr_state_s for fd %d.\n", sockfd);
+		free_cmdsocket(cmdsocket);
+	}
 }
 
 static void cmd_connect(int listenfd, short evtype, void *arg)
